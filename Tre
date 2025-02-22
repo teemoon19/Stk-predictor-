@@ -1,0 +1,60 @@
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+import numpy as np
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error
+
+# Streamlit UI
+st.title("Stock Price Prediction App")
+
+# User input for stock ticker
+stock_ticker = st.text_input("Enter Stock Ticker (e.g., AAPL, TSLA)", "AAPL")
+
+# Fetch stock data
+def get_stock_data(ticker):
+    stock = yf.Ticker(ticker)
+    df = stock.history(period="2y")
+    return df
+
+df = get_stock_data(stock_ticker)
+
+if not df.empty:
+    st.subheader(f"Stock Price Data for {stock_ticker}")
+    st.line_chart(df['Close'])
+    
+    # Feature engineering
+    df['Lag_1'] = df['Close'].shift(1)
+    df['Lag_2'] = df['Close'].shift(2)
+    df['Lag_3'] = df['Close'].shift(3)
+    df.dropna(inplace=True)
+    
+    X = df[['Lag_1', 'Lag_2', 'Lag_3']]
+    y = df['Close']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # Train the model
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
+    
+    # Make predictions
+    y_pred = model.predict(X_test)
+    
+    # Display predictions
+    st.subheader("Model Predictions vs Actual Prices")
+    result_df = pd.DataFrame({"Actual": y_test, "Predicted": y_pred})
+    st.line_chart(result_df)
+    
+    # Display error
+    error = mean_absolute_error(y_test, y_pred)
+    st.write(f"Mean Absolute Error: {error:.2f}")
+else:
+    st.error("Invalid stock ticker or no data available.")
+
+# requirements.txt content:
+# streamlit
+yfinance
+scikit-learn
+pandas
+numpy
