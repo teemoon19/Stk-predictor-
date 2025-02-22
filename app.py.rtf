@@ -1,0 +1,79 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2821
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 try:\
+    import streamlit as st\
+    import yfinance as yf\
+    import pandas as pd\
+    import numpy as np\
+    from sklearn.ensemble import RandomForestRegressor\
+    from sklearn.model_selection import train_test_split\
+    from sklearn.metrics import mean_absolute_error\
+except ModuleNotFoundError as e:\
+    print("Error: Required modules are not installed or unavailable in this environment.")\
+    print("Please install dependencies using: pip install streamlit yfinance scikit-learn pandas numpy")\
+    st = None\
+\
+# Check if Streamlit is available\
+if st is not None:\
+    # Streamlit UI\
+    st.title("Stock Price Prediction App")\
+\
+    # User input for stock ticker\
+    stock_ticker = st.text_input("Enter Stock Ticker (e.g., AAPL, TSLA)", "AAPL")\
+\
+    # Fetch stock data\
+    def get_stock_data(ticker):\
+        try:\
+            stock = yf.Ticker(ticker)\
+            df = stock.history(period="2y")\
+            if df.empty:\
+                raise ValueError("No data available for the given stock ticker.")\
+            return df\
+        except Exception as e:\
+            st.error(f"Error fetching stock data: \{str(e)\}")\
+            return pd.DataFrame()\
+\
+    df = get_stock_data(stock_ticker)\
+\
+    if not df.empty:\
+        st.subheader(f"Stock Price Data for \{stock_ticker\}")\
+        st.line_chart(df['Close'])\
+        \
+        # Feature engineering\
+        df['Lag_1'] = df['Close'].shift(1)\
+        df['Lag_2'] = df['Close'].shift(2)\
+        df['Lag_3'] = df['Close'].shift(3)\
+        df.dropna(inplace=True)\
+        \
+        if not df.empty:\
+            X = df[['Lag_1', 'Lag_2', 'Lag_3']]\
+            y = df['Close']\
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)\
+            \
+            # Train the model\
+            model = RandomForestRegressor(n_estimators=100, random_state=42)\
+            model.fit(X_train, y_train)\
+            \
+            # Make predictions\
+            y_pred = model.predict(X_test)\
+            \
+            # Display predictions\
+            st.subheader("Model Predictions vs Actual Prices")\
+            result_df = pd.DataFrame(\{"Actual": y_test, "Predicted": y_pred\})\
+            st.line_chart(result_df)\
+            \
+            # Display error\
+            error = mean_absolute_error(y_test, y_pred)\
+            st.write(f"Mean Absolute Error: \{error:.2f\}")\
+        else:\
+            st.error("Not enough data for prediction. Please try another stock ticker.")\
+    else:\
+        st.error("Invalid stock ticker or no data available.")\
+else:\
+    print("Streamlit is not available in this environment. Please ensure it is installed and supported.")\
+}
